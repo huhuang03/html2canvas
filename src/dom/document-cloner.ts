@@ -29,6 +29,7 @@ export interface CloneOptions {
     ignoreElements?: (element: Element) => boolean;
     onclone?: (document: Document, element: HTMLElement) => void;
     allowTaint?: boolean;
+    imgAddCrossorigin?: boolean;
 }
 
 export interface WindowOptions {
@@ -162,6 +163,10 @@ export class DocumentCloner {
 
             if (clone.loading === 'lazy') {
                 clone.loading = 'eager';
+            }
+
+            if (this.options.imgAddCrossorigin) {
+                clone.setAttribute('crossorigin', 'anonymous');
             }
         }
 

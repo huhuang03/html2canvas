@@ -78,7 +78,8 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
         onclone: opts.onclone,
         ignoreElements: opts.ignoreElements,
         inlineImages: foreignObjectRendering,
-        copyStyles: foreignObjectRendering
+        copyStyles: foreignObjectRendering,
+        imgAddCrossorigin: opts.imgAddCrossorigin
     };
 
     context.logger.debug(

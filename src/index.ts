@@ -27,6 +27,7 @@ if (typeof window !== 'undefined') {
 }
 
 const renderElement = async (element: HTMLElement, opts: Partial<Options>): Promise<HTMLCanvasElement> => {
+    // console.log('begin renderElement');
     if (!element || typeof element !== 'object') {
         return Promise.reject('Invalid element provided as first argument');
     }
@@ -70,6 +71,8 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
     );
 
     const context = new Context(contextOptions, windowBounds);
+    context.logger.debug('begin html2canvas');
+    let beginTime = new Date().getTime();
 
     const foreignObjectRendering = opts.foreignObjectRendering ?? false;
 
@@ -111,6 +114,8 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
         width: opts.width ?? Math.ceil(width),
         height: opts.height ?? Math.ceil(height)
     };
+    context.logger.debug(`create clone root used time: ${new Date().getTime() - beginTime}`);
+    beginTime = new Date().getTime();
 
     let canvas;
 
@@ -137,6 +142,7 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
         const renderer = new CanvasRenderer(context, renderOptions);
         canvas = await renderer.render(root);
     }
+    context.logger.debug(`clone used time: ${new Date().getTime() - beginTime}`);
 
     if (opts.removeContainer ?? true) {
         if (!DocumentCloner.destroy(container)) {

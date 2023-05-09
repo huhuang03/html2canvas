@@ -21,7 +21,7 @@ export async function html2canvasSegmentedGetBlobList(
     option: Partial<Options> = {},
     segmentHeight: number,
     mineType = 'image/jpeg'
-): Promise<unknown> {
+): Promise<Blob[]> {
     const rst: Blob[] = [];
     await html2canvasSegmented(ele, option, segmentHeight, (c) => {
         return new Promise<Blob>((resolve, reject) => {

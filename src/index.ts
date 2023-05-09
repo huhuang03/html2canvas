@@ -16,6 +16,93 @@ export type Options = CloneOptions &
         removeContainer?: boolean;
     };
 
+export async function html2canvasSegmentedGetBlobList(
+    ele: HTMLElement,
+    option: Partial<Options> = {},
+    segmentHeight: number,
+    mineType = 'image/jpeg'
+): Promise<unknown> {
+    const rst: Blob[] = [];
+    await html2canvasSegmented(ele, option, segmentHeight, (c) => {
+        return new Promise<Blob>((resolve, reject) => {
+            c.toBlob(
+                (blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('to blob failed!'));
+                    }
+                },
+                mineType,
+                1
+            );
+        }).then((blob) => rst.push(blob));
+    });
+    return rst;
+}
+
+/**
+ * 分段截屏，如果成功返回Promise.resolve(true)。如果失败，会reject
+ * @param ele
+ * @param option
+ * @param segmentHeight
+ * @param op 对canvas的操作，如果是一个异步操作，需要返回一个Promise
+ */
+export async function html2canvasSegmented(
+    ele: HTMLElement,
+    option: Partial<Options> = {},
+    segmentHeight: number,
+    op: (canvas: HTMLCanvasElement) => Promise<unknown> | undefined | null
+): Promise<void> {
+    if (ele == null) {
+        return Promise.reject(Error('element is null'));
+    }
+
+    const {context, container, clonedElement} = await prepare(ele, option);
+
+    const scale = window.devicePixelRatio;
+    let canvas: HTMLCanvasElement | null = document.createElement('canvas');
+    const tmpCtx = canvas.getContext('2d');
+    if (!tmpCtx) {
+        throw new Error('ctx is null, maybe used too may resources');
+    }
+    const width = ele.scrollWidth;
+
+    canvas.width = Math.floor(scale * width);
+    canvas.height = Math.floor(scale * segmentHeight);
+
+    const totalHeight = ele.scrollHeight;
+    let curTop = 0;
+    while (curTop < totalHeight) {
+        const height = Math.min(totalHeight - curTop, segmentHeight);
+        canvas.width = Math.floor(scale * width);
+        canvas.height = Math.floor(scale * height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            throw new Error('ctx is null, maybe used too may resources');
+        }
+        ctx.getContextAttributes().willReadFrequently = true;
+
+        const c = await render(context, ele, clonedElement, {
+            ...option,
+            canvas,
+            y: curTop,
+            height: height,
+            width: ele.scrollWidth
+        });
+        const rst = op(c);
+        if (rst && typeof rst.then === 'function') {
+            await rst;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        releaseCanvas(c);
+        curTop += height;
+    }
+    canvas.remove();
+    canvas = null;
+    destroyContainer(container);
+}
+
 export const html2canvas = (element: HTMLElement, options: Partial<Options> = {}): Promise<HTMLCanvasElement> => {
     return renderElement(element, options);
 };
@@ -26,7 +113,7 @@ if (typeof window !== 'undefined') {
     CacheStorage.setContext(window);
 }
 
-export const destroyContainer = (container: HTMLIFrameElement): Boolean => {
+export const destroyContainer = (container: HTMLIFrameElement): boolean => {
     return DocumentCloner.destroy(container);
 };
 
@@ -89,7 +176,6 @@ export const prepare = async (
     );
 
     const context = new Context(contextOptions, windowBounds);
-    console.log('begin html2canvas');
 
     const foreignObjectRendering = opts.foreignObjectRendering ?? false;
 
@@ -173,7 +259,6 @@ export const render = async (
         const renderer = new CanvasRenderer(context, renderOptions);
         canvas = await renderer.render(root);
     }
-    console.log(`render used time: ${new Date().getTime() - beginTime}`);
     return canvas;
 };
 
@@ -202,3 +287,10 @@ const parseBackgroundColor = (context: Context, element: HTMLElement, background
             : documentBackgroundColor
         : defaultBackgroundColor;
 };
+
+function releaseCanvas(canvas: HTMLCanvasElement) {
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    ctx && ctx.clearRect(0, 0, 1, 1);
+}

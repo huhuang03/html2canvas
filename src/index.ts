@@ -232,8 +232,6 @@ export const render = async (
         width: opts.width ?? Math.ceil(width),
         height: opts.height ?? Math.ceil(height)
     };
-    const beginTime = new Date().getTime();
-
     let canvas;
 
     if (foreignObjectRendering) {

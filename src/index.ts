@@ -16,21 +16,25 @@ export type Options = CloneOptions &
         removeContainer?: boolean;
     };
 
-const html2canvas = (element: HTMLElement, options: Partial<Options> = {}): Promise<HTMLCanvasElement> => {
+export const html2canvas = (element: HTMLElement, options: Partial<Options> = {}): Promise<HTMLCanvasElement> => {
     return renderElement(element, options);
 };
 
-export default html2canvas;
+// export default html2canvas;
 
 if (typeof window !== 'undefined') {
     CacheStorage.setContext(window);
 }
 
+export const destroyContainer = (container: HTMLIFrameElement): Boolean => {
+    return DocumentCloner.destroy(container);
+};
+
 const renderElement = async (element: HTMLElement, opts: Partial<Options>): Promise<HTMLCanvasElement> => {
     const {context, clonedElement, container} = await prepare(element, opts);
     const canvas = await render(context, element, clonedElement, opts);
     if (opts.removeContainer ?? true) {
-        if (!DocumentCloner.destroy(container)) {
+        if (!destroyContainer(container)) {
             context.logger.error(`Cannot detach cloned iframe as it is not in the DOM anymore`);
         }
     }

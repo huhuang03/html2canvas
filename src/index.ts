@@ -27,7 +27,21 @@ if (typeof window !== 'undefined') {
 }
 
 const renderElement = async (element: HTMLElement, opts: Partial<Options>): Promise<HTMLCanvasElement> => {
-    // console.log('begin renderElement');
+    const {context, clonedElement, container} = await prepare(element, opts);
+    const canvas = await render(context, element, clonedElement, opts);
+    if (opts.removeContainer ?? true) {
+        if (!DocumentCloner.destroy(container)) {
+            context.logger.error(`Cannot detach cloned iframe as it is not in the DOM anymore`);
+        }
+    }
+    context.logger.debug(`Finished rendering`);
+    return canvas;
+};
+
+export const prepare = async (
+    element: HTMLElement,
+    opts: Partial<Options>
+): Promise<{context: Context; clonedElement: HTMLElement; container: HTMLIFrameElement}> => {
     if (!element || typeof element !== 'object') {
         return Promise.reject('Invalid element provided as first argument');
     }
@@ -71,8 +85,7 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
     );
 
     const context = new Context(contextOptions, windowBounds);
-    context.logger.debug('begin html2canvas');
-    let beginTime = new Date().getTime();
+    console.log('begin html2canvas');
 
     const foreignObjectRendering = opts.foreignObjectRendering ?? false;
 
@@ -95,8 +108,23 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
     if (!clonedElement) {
         return Promise.reject(`Unable to find element in cloned iframe`);
     }
-
     const container = await documentCloner.toIFrame(ownerDocument, windowBounds);
+    return Promise.resolve({context: context, clonedElement: clonedElement, container});
+};
+
+export const render = async (
+    context: Context,
+    element: HTMLElement,
+    clonedElement: HTMLElement,
+    opts: Partial<Options>
+): Promise<HTMLCanvasElement> => {
+    const ownerDocument = element.ownerDocument;
+    const defaultView = ownerDocument.defaultView;
+    if (!defaultView) {
+        throw new Error(`Document is not attached to a Window`);
+    }
+
+    const foreignObjectRendering = opts.foreignObjectRendering ?? false;
 
     const {width, height, left, top} =
         isBodyElement(clonedElement) || isHTMLElement(clonedElement)
@@ -114,8 +142,7 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
         width: opts.width ?? Math.ceil(width),
         height: opts.height ?? Math.ceil(height)
     };
-    context.logger.debug(`create clone root used time: ${new Date().getTime() - beginTime}`);
-    beginTime = new Date().getTime();
+    const beginTime = new Date().getTime();
 
     let canvas;
 
@@ -142,15 +169,7 @@ const renderElement = async (element: HTMLElement, opts: Partial<Options>): Prom
         const renderer = new CanvasRenderer(context, renderOptions);
         canvas = await renderer.render(root);
     }
-    context.logger.debug(`clone used time: ${new Date().getTime() - beginTime}`);
-
-    if (opts.removeContainer ?? true) {
-        if (!DocumentCloner.destroy(container)) {
-            context.logger.error(`Cannot detach cloned iframe as it is not in the DOM anymore`);
-        }
-    }
-
-    context.logger.debug(`Finished rendering`);
+    console.log(`render used time: ${new Date().getTime() - beginTime}`);
     return canvas;
 };
 
